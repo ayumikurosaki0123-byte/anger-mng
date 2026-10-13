@@ -1,0 +1,258 @@
+<!DOCTYPE html>
+<html lang="ja">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>AI搭載・お怒り文章マイルド変換器</title>
+  
+  <style>
+    :root {
+      --primary-color: #e74c3c; /* お怒りモードの赤 */
+      --success-color: #2ecc71; /* マイルドモードの緑 */
+      --bg-color: #f5f6fa;
+    }
+    body {
+      font-family: 'Helvetica Neue', Arial, sans-serif;
+      background-color: var(--bg-color);
+      color: #333;
+      margin: 0;
+      padding: 20px;
+    }
+    .container {
+      max-width: 800px;
+      margin: 0 auto;
+      background: #fff;
+      padding: 30px;
+      border-radius: 12px;
+      box-shadow: 0 4px 15px rgba(0,0,0,0.05);
+    }
+    h1 {
+      text-align: center;
+      color: #2c3e50;
+      font-size: 24px;
+      margin-bottom: 20px;
+    }
+    .api-key-section {
+      background: #f8f9fa;
+      padding: 15px;
+      border-radius: 8px;
+      margin-bottom: 25px;
+      border: 1px solid #e1e8ed;
+    }
+    .api-key-section p {
+      margin: 0 0 8px 0;
+      font-size: 13px;
+      color: #666;
+    }
+    .app-main {
+      display: grid;
+      grid-template-columns: 1fr 1fr;
+      gap: 20px;
+    }
+    @media (max-width: 600px) {
+      .app-main { grid-template-columns: 1fr; }
+    }
+    .box {
+      display: flex;
+      flex-direction: column;
+    }
+    label {
+      font-weight: bold;
+      margin-bottom: 8px;
+      font-size: 14px;
+    }
+    textarea {
+      width: 100%;
+      height: 200px;
+      padding: 12px;
+      box-sizing: border-box;
+      border: 2px solid #ddd;
+      border-radius: 8px;
+      font-size: 14px;
+      resize: none;
+      transition: border-color 0.3s;
+    }
+    textarea:focus {
+      outline: none;
+    }
+    #input-text:focus { border-color: var(--primary-color); }
+    #output-text:focus { border-color: var(--success-color); }
+    input[type="text"] {
+      width: 100%;
+      padding: 8px;
+      box-sizing: border-box;
+      border: 1px solid #ddd;
+      border-radius: 4px;
+    }
+    .btn-container {
+      grid-column: 1 / -1;
+      text-align: center;
+      margin-top: 15px;
+    }
+    button {
+      background-color: var(--primary-color);
+      color: white;
+      border: none;
+      padding: 12px 35px;
+      font-size: 16px;
+      font-weight: bold;
+      border-radius: 25px;
+      cursor: pointer;
+      box-shadow: 0 4px 6px rgba(0,0,0,0.1);
+      transition: transform 0.1s, background-color 0.3s;
+    }
+    button:hover { background-color: #c0392b; }
+    button:active { transform: scale(0.98); }
+    button:disabled {
+      background-color: #bdc3c7;
+      cursor: not-allowed;
+    }
+    .loading {
+      display: none;
+      color: #7f8c8d;
+      font-size: 14px;
+      margin-top: 10px;
+    }
+  </style>
+</head>
+<body>
+
+<div class="container">
+  <h1>🤬 AI搭載・お怒り文章マイルド変換器 🕊️</h1>
+
+  <div class="api-key-section">
+    <p>🔑 <strong>試作用設定:</strong> Gemini APIキーを入力してください</p>
+    <input type="text" id="api-key" placeholder="AIzaSy...">
+  </div>
+
+  <div class="app-main">
+    <div class="box">
+      <label for="input-text">💢 ぶちまけたい怒り（入力）</label>
+      <textarea id="input-text" placeholder="例：バグ多すぎだろ！何回同じミスすんだよ、いい加換にしろ！"></textarea>
+    </div>
+
+    <div class="box">
+      <label for="output-text">🕊️ 大人なマイルド文章（出力）</label>
+      <textarea id="output-text" readonly placeholder="ここに社会人100点満点の文章が生成されます..."></textarea>
+    </div>
+
+    <div class="btn-container">
+      <button id="convert-btn">マイルドに変換する</button>
+      <div class="loading" id="loading-text">⏳ AIが深呼吸を促しながらマイルドに翻訳中...</div>
+    </div>
+  </div>
+</div>
+<!-- jQueryの読み込み -->
+<script type="text/javascript" src="js/jquery-4.0.0.min.js"></script>
+<script>
+
+$(function() {
+  $('#convert-btn').on('click', async function() {
+
+    // 入力欄からAPIキーと文章を取得
+    const apiKey = $('#api-key').val().trim();
+    const inputText = $('#input-text').val().trim();
+
+    if (!apiKey) {
+      alert('APIキーを入力してください。');
+      return;
+    }
+
+    if (!inputText) {
+      alert('怒りの文章を入力してください。');
+      return;
+    }
+
+    // 二重クリックを防止
+    $('#convert-btn').prop('disabled', true);
+    $('#loading-text').show();
+    $('#output-text').val('');
+
+    const systemInstruction =
+    'あなたは、相手への配慮ができるビジネスパーソンです。' +
+    '入力された怒りの文章を、言いたい要点を変えずに、' +
+    '丁寧で角の立たない文章に変換してください。' +
+    '返答は簡潔にし、原文と同程度の長さを目安にしてください。' +
+    '必要以上の説明や挨拶、前置きは追加しないでください。' +
+    '変換後の文章のみを出力してください。' +
+    '自分が責められたことへの不満や被害者意識が伝わる表現は避けてください。' +
+    '「困惑しております」「納得できません」「お叱りを受ける結果となり」など、' +
+    '自分の感情や相手への不満を強調する表現は使用しないでください。' +
+    '相手を責めたり、自分の正当性を主張したりせず、事実確認や今後の対応に焦点を当てた、' +
+    '謙虚で自然な文章にしてください。ただし、必要以上に自分の非を認める必要はありません。';
+
+    const prompt =
+      systemInstruction + '\n\n変換対象の文章:\n' + inputText;
+
+    // Gemini APIのURL
+const apiUrl =
+  'https://generativelanguage.googleapis.com/v1beta/models/gemini-3.5-flash-lite:generateContent';
+
+    try {
+      const response = await $.ajax({
+        url: apiUrl,
+        type: 'POST',
+        contentType: 'application/json',
+        headers: {
+          'x-goog-api-key': apiKey
+        },
+        data: JSON.stringify({
+          contents: [
+            {
+              parts: [
+                { text: prompt }
+              ]
+            }
+          ]
+        })
+      });
+
+      const resultText =
+        response.candidates?.[0]?.content?.parts
+          ?.map(part => part.text || '')
+          .join('');
+
+      if (!resultText) {
+        throw new Error('AIから文章が返されませんでした。');
+      }
+
+      typeWriterEffect(resultText, $('#output-text'));
+
+    } catch (error) {
+      console.error('APIエラー:', error);
+
+      let message = '変換に失敗しました。';
+
+      if (error.responseJSON?.error?.message) {
+        message += '\n詳細：' + error.responseJSON.error.message;
+      } else if (error.message) {
+        message += '\n詳細：' + error.message;
+      }
+
+      alert(message);
+
+    } finally {
+      $('#convert-btn').prop('disabled', false);
+      $('#loading-text').hide();
+    }
+  });
+
+  // 1文字ずつ表示
+  function typeWriterEffect(text, $target) {
+    let index = 0;
+    $target.val('');
+
+    const timer = setInterval(function() {
+      if (index < text.length) {
+        $target.val($target.val() + text.charAt(index));
+        index++;
+      } else {
+        clearInterval(timer);
+      }
+    }, 30);
+  }
+});
+</script>
+
+</body>
+</html>
